@@ -336,91 +336,93 @@ func (s *Simulator) makeField(val int) []string {
 	return fields
 }
 
+func (s *Simulator) createBatchInch(ch chan []byte) {
+	values := make([]int, len(s.Tags))
+	lastWrittenTotal := s.WrittenN()
+
+	// Generate field strings
+	var fields [][]string
+	maxFieldVal := 1
+	if s.RandomizeFields {
+		maxFieldVal = 10000
+	}
+	for i := 0; i < maxFieldVal; i++ {
+		fields = append(fields, s.makeField(i))
+	}
+
+	// Size internal buffer to consider mx+tags+ +fields.
+	buf := bytes.NewBuffer(make([]byte, 0, 2+len(values)+1+len(fields)))
+
+	// Write points.
+	var lastMN int
+	lastM := []byte("m0")
+	fieldRandomize := rand.New(rand.NewSource(1234))
+	var tags []byte
+
+	if s.OneFieldPerLine {
+		s.WritesPerPoint = s.FieldsPerPoint
+		s.BatchSize /= s.WritesPerPoint
+	}
+
+	for i := 0; i < s.PointN(); i++ {
+		lastMN = i % s.Measurements
+		lastM = append(lastM[:1], []byte(strconv.Itoa(lastMN))...)
+		tags = tags[:0] // Reset slice but use backing array.
+		for j, value := range values {
+			tags = append(tags, fmt.Sprintf(",tag%d=value%d", j, value)...)
+		}
+
+		fieldValueIndex := 0
+		if s.RandomizeFields {
+			fieldValueIndex = fieldRandomize.Intn(maxFieldVal)
+		}
+
+		var delta time.Duration
+		if s.timePerSeries != 0 {
+			delta = time.Duration(int64(lastWrittenTotal+i) * s.timePerSeries)
+		} else {
+			delta = time.Duration(int64(lastWrittenTotal + i))
+			if soFar := time.Since(s.startTime); delta < soFar {
+				delta = soFar
+			}
+		}
+		timestamp := s.startTime.Add(delta).UnixNano()
+
+		for f := 0; f < s.WritesPerPoint; f++ {
+			s.formatWrites(buf, lastM, tags, fields[fieldValueIndex][f], timestamp)
+		}
+
+		// Increment next tag value.
+		for i := range values {
+			values[i]++
+			if values[i] < s.Tags[i] {
+				break
+			} else {
+				values[i] = 0 // reset to zero, increment next value
+				continue
+			}
+		}
+		// Start new batch, if necessary.
+		if i > 0 && i%s.BatchSize == 0 {
+			ch <- copyBytes(buf.Bytes())
+			buf.Reset()
+		}
+	}
+
+	// Add final batch.
+	if buf.Len() > 0 {
+		ch <- copyBytes(buf.Bytes())
+	}
+
+	// Close channel.
+	close(ch)
+}
+
 // generateBatches returns a channel for streaming batches.
 func (s *Simulator) generateBatches() <-chan []byte {
 	ch := make(chan []byte, 10)
 
-	go func() {
-		values := make([]int, len(s.Tags))
-		lastWrittenTotal := s.WrittenN()
-
-		// Generate field strings
-		var fields [][]string
-		maxFieldVal := 1
-		if s.RandomizeFields {
-			maxFieldVal = 10000
-		}
-		for i := 0; i < maxFieldVal; i++ {
-			fields = append(fields, s.makeField(i))
-		}
-
-		// Size internal buffer to consider mx+tags+ +fields.
-		buf := bytes.NewBuffer(make([]byte, 0, 2+len(values)+1+len(fields)))
-
-		// Write points.
-		var lastMN int
-		lastM := []byte("m0")
-		fieldRandomize := rand.New(rand.NewSource(1234))
-		var tags []byte
-
-		if s.OneFieldPerLine {
-			s.WritesPerPoint = s.FieldsPerPoint
-			s.BatchSize /= s.WritesPerPoint
-		}
-
-		for i := 0; i < s.PointN(); i++ {
-			lastMN = i % s.Measurements
-			lastM = append(lastM[:1], []byte(strconv.Itoa(lastMN))...)
-			tags = tags[:0] // Reset slice but use backing array.
-			for j, value := range values {
-				tags = append(tags, fmt.Sprintf(",tag%d=value%d", j, value)...)
-			}
-
-			fieldValueIndex := 0
-			if s.RandomizeFields {
-				fieldValueIndex = fieldRandomize.Intn(maxFieldVal)
-			}
-
-			var delta time.Duration
-			if s.timePerSeries != 0 {
-				delta = time.Duration(int64(lastWrittenTotal+i) * s.timePerSeries)
-			} else {
-				delta = time.Duration(int64(lastWrittenTotal + i))
-				if soFar := time.Since(s.startTime); delta < soFar {
-					delta = soFar
-				}
-			}
-			timestamp := s.startTime.Add(delta).UnixNano()
-
-			for f := 0; f < s.WritesPerPoint; f++ {
-				s.formatWrites(buf, lastM, tags, fields[fieldValueIndex][f], timestamp)
-			}
-
-			// Increment next tag value.
-			for i := range values {
-				values[i]++
-				if values[i] < s.Tags[i] {
-					break
-				} else {
-					values[i] = 0 // reset to zero, increment next value
-					continue
-				}
-			}
-			// Start new batch, if necessary.
-			if i > 0 && i%s.BatchSize == 0 {
-				ch <- copyBytes(buf.Bytes())
-				buf.Reset()
-			}
-		}
-
-		// Add final batch.
-		if buf.Len() > 0 {
-			ch <- copyBytes(buf.Bytes())
-		}
-
-		// Close channel.
-		close(ch)
-	}()
+	go s.createBatchInch(ch)
 
 	return ch
 }
