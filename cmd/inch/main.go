@@ -35,7 +35,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 }
 
 // NewMain returns a new instance of Main.

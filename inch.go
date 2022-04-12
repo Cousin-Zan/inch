@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -23,6 +24,8 @@ import (
 
 	"github.com/influxdata/influxdb1-client/models"
 	client "github.com/influxdata/influxdb1-client/v2"
+	"github.com/xitongsys/parquet-go-source/local"
+	"github.com/xitongsys/parquet-go/reader"
 )
 
 // ErrConnectionRefused indicates that the connection to the remote server was refused.
@@ -418,11 +421,68 @@ func (s *Simulator) createBatchInch(ch chan []byte) {
 	close(ch)
 }
 
+type Timeline struct {
+	Time     *int64 `parquet:"name=time, type=INT64, logicaltype=TIMESTAMP, logicaltype.isadjustedtoutc=true, logicaltype.unit=NANOS"`
+	Duration *int64 `parquet:"name=duration, type=INT64"`
+	Id       *int64 `parquet:"name=id, type=INT64"`
+	Name     *int64 `parquet:"name=name, type=INT64"`
+	// Name      string `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+	Category  *string `parquet:"name=category, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+	Precision *string `parquet:"name=precision, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+}
+
+//missing tag value\nunable to parse 'gpu,name=void_at::native::vectorized_elementwise_kernel\u003c4,_at::native::AddFunctor\u003cc10::Half\u003e,_at::detail::Array\u003cchar*,_3\u003e_\u003e(int,_at::native::AddFunctor\u003cc10::Half\u003e,_at::detail::Array\u003cchar*,_3\u003e),category=gpu_kernel,precision=FP32 duration=845819,id=12 1649784367566112991':
+// missing tag value\nunable to parse 'gpu,name=void_at::native::vectorized_elementwise_kernel\u003c4,_at::native::(anonymous_namespace)::clamp_min_scalar_kernel_impl(at::TensorIterator\u0026,_c10::Scalar)::{lambda()#1}::operator()()_const::{lambda()#16}::operator()()_const::{lambda(c10::Half)#1},_at::detail::Array\u003cchar*,_2\u003e_\u003e(int,_at::native::(anonymous_namespace)::clamp_min_scalar_kernel_impl(at::TensorIterator\u0026,_c10::Scalar)::{lambda()#1}::operator()()_const::{lambda()#16}::operator()()_const::{lambda(c10::Half)#1},_at::detail::Array\u003cchar*,_2\u003e),category=gpu_kernel,precision=FP32 duration=563197,id=7 1649784367566112991':
+
+func (s *Simulator) addPoint(ch chan []byte, row Timeline, buf *bytes.Buffer, rowIndex int) {
+	// timestamp := s.startTime.Add(100).UnixNano()
+
+	// fmt.Println(fmt.Sprintf(",name=%d,category=%s,precision=%s", *row.Name, *row.Category, *row.Precision))
+	// fmt.Println(fmt.Sprintf("duration=%d,id=%d", *row.Duration, *row.Id))
+	s.formatWrites(buf, []byte("gpu"), []byte(fmt.Sprintf(",name=%d,category=%s,precision=%s", *row.Name, *row.Category, *row.Precision)),
+		fmt.Sprintf("duration=%d,id=%d", *row.Duration, *row.Id),
+		// timestamp,
+		*row.Time,
+	)
+
+	if rowIndex > 0 && rowIndex%s.BatchSize == 0 {
+		ch <- copyBytes(buf.Bytes())
+		buf.Reset()
+	}
+}
+
+func (s *Simulator) loadParquet(f string, ch chan []byte) {
+	///read
+	fr, err := local.NewLocalFileReader(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	pr, err := reader.NewParquetReader(fr, new(Timeline), 20)
+	num_rows := int(pr.GetNumRows())
+	rows, err := pr.ReadByNumber(num_rows)
+
+	// TODO: Fix buf size
+	buf := bytes.NewBuffer(make([]byte, 0, 100))
+	for rowIndex, row := range rows {
+		s.addPoint(ch, row.(Timeline), buf, rowIndex)
+	}
+	// Add final batch.
+	if buf.Len() > 0 {
+		ch <- copyBytes(buf.Bytes())
+	}
+
+	fr.Close()
+	pr.ReadStop()
+	close(ch)
+}
+
 // generateBatches returns a channel for streaming batches.
 func (s *Simulator) generateBatches() <-chan []byte {
 	ch := make(chan []byte, 10)
 
-	go s.createBatchInch(ch)
+	go s.loadParquet("/home/ubuntu/dev/influxdb-python-demo/data/mrcnn_p4d_1node_gpu_kernels_trimmed.parquet", ch)
+	// go s.loadParquet("/home/ubuntu/dev/influxdb-python-demo/data/gpu1.parquet", ch)
+	// go s.createBatchInch(ch)
 
 	return ch
 }
@@ -699,8 +759,8 @@ var defaultSetupFn = func(s *Simulator) error {
 	if len(version) > 0 {
 		s.ReportTags["version"] = version
 	}
-
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/query", s.Host), strings.NewReader("q=CREATE+DATABASE+"+s.Database+"+WITH+DURATION+"+s.ShardDuration))
+	// +"+WITH+DURATION+"+s.ShardDuration
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/query", s.Host), strings.NewReader("q=CREATE+DATABASE+"+s.Database))
 	if err != nil {
 		return err
 	}
