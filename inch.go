@@ -422,13 +422,15 @@ func (s *Simulator) createBatchInch(ch chan []byte) {
 }
 
 type Timeline struct {
-	Time     *int64 `parquet:"name=time, type=INT64, logicaltype=TIMESTAMP, logicaltype.isadjustedtoutc=true, logicaltype.unit=NANOS"`
-	Duration *int64 `parquet:"name=duration, type=INT64"`
-	Id       *int64 `parquet:"name=id, type=INT64"`
-	Name     *int64 `parquet:"name=name, type=INT64"`
+	Time      *int64 `parquet:"name=time, type=INT64, logicaltype=TIMESTAMP, logicaltype.isadjustedtoutc=true, logicaltype.unit=NANOS"`
+	Duration  *int64 `parquet:"name=duration, type=INT64"`
+	Id        *int64 `parquet:"name=id, type=INT64"`
+	Name      *int32 `parquet:"name=name, type=INT32"`
+	Category  *int32 `parquet:"name=category, type=INT32"`
+	Precision *int32 `parquet:"name=precision, type=INT32"`
 	// Name      string `parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
-	Category  *string `parquet:"name=category, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
-	Precision *string `parquet:"name=precision, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+	// Category  *string `parquet:"name=category, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
+	// Precision *string `parquet:"name=precision, type=BYTE_ARRAY, convertedtype=UTF8, encoding=PLAIN_DICTIONARY"`
 }
 
 //missing tag value\nunable to parse 'gpu,name=void_at::native::vectorized_elementwise_kernel\u003c4,_at::native::AddFunctor\u003cc10::Half\u003e,_at::detail::Array\u003cchar*,_3\u003e_\u003e(int,_at::native::AddFunctor\u003cc10::Half\u003e,_at::detail::Array\u003cchar*,_3\u003e),category=gpu_kernel,precision=FP32 duration=845819,id=12 1649784367566112991':
@@ -439,7 +441,7 @@ func (s *Simulator) addPoint(ch chan []byte, row Timeline, buf *bytes.Buffer, ro
 
 	// fmt.Println(fmt.Sprintf(",name=%d,category=%s,precision=%s", *row.Name, *row.Category, *row.Precision))
 	// fmt.Println(fmt.Sprintf("duration=%d,id=%d", *row.Duration, *row.Id))
-	s.formatWrites(buf, []byte("gpu"), []byte(fmt.Sprintf(",name=%d,category=%s,precision=%s", *row.Name, *row.Category, *row.Precision)),
+	s.formatWrites(buf, []byte("gpu"), []byte(fmt.Sprintf(",name=%d,category=%d,precision=%d", *row.Name, *row.Category, *row.Precision)),
 		fmt.Sprintf("duration=%d,id=%d", *row.Duration, *row.Id),
 		// timestamp,
 		*row.Time,
@@ -461,8 +463,8 @@ func (s *Simulator) loadParquet(f string, ch chan []byte) {
 	num_rows := int(pr.GetNumRows())
 	rows, err := pr.ReadByNumber(num_rows)
 
-	// TODO: Fix buf size
-	buf := bytes.NewBuffer(make([]byte, 0, 100))
+	// TODO: Fix buf size. This is a slice, so it should be fine to leave it as a large buf size.
+	buf := bytes.NewBuffer(make([]byte, 0, 200))
 	for rowIndex, row := range rows {
 		s.addPoint(ch, row.(Timeline), buf, rowIndex)
 	}
@@ -480,8 +482,7 @@ func (s *Simulator) loadParquet(f string, ch chan []byte) {
 func (s *Simulator) generateBatches() <-chan []byte {
 	ch := make(chan []byte, 10)
 
-	go s.loadParquet("/home/ubuntu/dev/influxdb-python-demo/data/mrcnn_p4d_1node_gpu_kernels_trimmed.parquet", ch)
-	// go s.loadParquet("/home/ubuntu/dev/influxdb-python-demo/data/gpu1.parquet", ch)
+	go s.loadParquet("/home/ubuntu/dev/inch/data/mrcnn_p4d_1node_gpu_kernels_trimmed_all.parquet", ch)
 	// go s.createBatchInch(ch)
 
 	return ch
