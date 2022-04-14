@@ -58,6 +58,7 @@ func (m *Main) ParseFlags(args []string) error {
 	m.inch.Stderr = os.Stderr
 
 	fs := flag.NewFlagSet("inch", flag.ContinueOnError)
+	fs.StringVar(&m.inch.ParquetFile, "parquet-file", "", "Parquet file path to dump")
 	fs.BoolVar(&m.inch.Verbose, "v", false, "Verbose")
 	fs.BoolVar(&m.inch.V2, "v2", false, "Writing into InfluxDB 2.0")
 	fs.StringVar(&m.inch.Token, "token", "", "InfluxDB 2.0 Authorization token")

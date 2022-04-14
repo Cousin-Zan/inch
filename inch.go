@@ -74,6 +74,7 @@ type Simulator struct {
 	WriteBatch func(s *Simulator, buf []byte) (statusCode int, body io.ReadCloser, err error)
 
 	// Decay factor used when weighting average latency returned by server.
+	ParquetFile    string
 	alpha          float64
 	V2             bool
 	Token          string
@@ -482,7 +483,7 @@ func (s *Simulator) loadParquet(f string, ch chan []byte) {
 func (s *Simulator) generateBatches() <-chan []byte {
 	ch := make(chan []byte, 10)
 
-	go s.loadParquet("/home/ubuntu/dev/inch/data/mrcnn_p4d_1node_gpu_kernels_trimmed_all.parquet", ch)
+	go s.loadParquet(s.ParquetFile, ch)
 	// go s.createBatchInch(ch)
 
 	return ch

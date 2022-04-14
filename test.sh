@@ -3,7 +3,8 @@
 export GOBIN=~/dev/inch/bin/
 go install ./cmd/inch/
 
-/usr/bin/time -v ./bin/inch -v -c 2 -b 10000 -t 2,5000,1 -p 3000
+/usr/bin/time -v ./bin/inch -v -c 256 -b 10000 -t 2,5000,1 -p 3000 \
+    -parquet-file "/home/ubuntu/dev/inch/data/mrcnn_p4d_1node_gpu_kernels_trimmed_all.parquet"
 # -randomize-fields true
 #-v2 -token my-super-secret-auth-token
 #
