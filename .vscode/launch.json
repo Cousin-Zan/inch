@@ -22,7 +22,7 @@
         "-p",
         "50",
         "-parquet-file",
-        "/home/ubuntu/dev/inch/data/mrcnn_p4d_1node_gpu_kernels_trimmed_all.parquet"
+        "/home/ubuntu/dev/inch/data/mrcnn_p4d_1node_gpu_kernels_trimmed.parquet"
         //  "-v2", "-token","my-super-secret-auth-token"
       ]
     }
