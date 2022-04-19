@@ -792,29 +792,37 @@ var defaultSetupFn = func(s *Simulator) error {
 // defaultWriteBatch is the default implementation of the WriteBatch function.
 // It's the caller's responsibility to close the response body.
 var defaultWriteBatch = func(s *Simulator, buf []byte) (statusCode int, body io.ReadCloser, err error) {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/write?db=%s&precision=ns&consistency=%s", s.Host, s.Database, s.Consistency), bytes.NewReader(buf))
+	var req *http.Request
+	if s.V2 == true {
+		req, err = http.NewRequest("POST", fmt.Sprintf("%s/api/v2/write?org=aws&bucket=aws&precision=ns", s.Host), bytes.NewReader(buf))
+	} else {
+		req, err = http.NewRequest("POST", fmt.Sprintf("%s/write?db=%s&precision=ns&consistency=%s", s.Host, s.Database, s.Consistency), bytes.NewReader(buf))
+	}
+
 	if err != nil {
 		return 0, nil, err
 	}
 
 	if s.V2 == true {
 		req.Header.Set("Authorization", "Token "+s.Token)
-	}
+		req.Header.Set("Content-Type", "text/plain; charset=utf-8")
+		req.Header.Set("Accept", "application/json")
+	} else {
+		if s.User != "" && s.Password != "" {
+			req.SetBasicAuth(s.User, s.Password)
+		}
+		req.Header.Set("Content-Type", "text/ascii")
 
-	var hostID uint64
-	if s.VHosts > 0 {
-		hostID = atomic.LoadUint64(&s.batchesWritten) % s.VHosts
-		req.Header.Set("X-Influxdb-Host", fmt.Sprintf("tenant%d.example.com", hostID))
-	}
+		if s.Gzip {
+			req.Header.Set("Content-Encoding", "gzip")
+			req.Header.Set("Content-Length", strconv.Itoa(len(buf)))
+		}
 
-	req.Header.Set("Content-Type", "text/ascii")
-	if s.Gzip {
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("Content-Length", strconv.Itoa(len(buf)))
-	}
-
-	if s.User != "" && s.Password != "" {
-		req.SetBasicAuth(s.User, s.Password)
+		var hostID uint64
+		if s.VHosts > 0 {
+			hostID = atomic.LoadUint64(&s.batchesWritten) % s.VHosts
+			req.Header.Set("X-Influxdb-Host", fmt.Sprintf("tenant%d.example.com", hostID))
+		}
 	}
 
 	resp, err := s.writeClient.Do(req)
