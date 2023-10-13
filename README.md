@@ -86,3 +86,44 @@ When `-report-host` is set to a non-empty value, inch will report throughput,
 points and values written, as well as write latency statistics.
 
 
+## Use Example
+``` shell
+./inch --host "http://172.16.100.32:8086" --token u-2Ep9hS-sjaEFxhsdC63hqrz4K8bhlLPpBpkKgYinA6kZ2sLTrydsRSxR9oofNHGk19aMD7C0DcnrfJpfm9WA== -v -c 256 -b 1000 -t 2,500,1 -p 300 --v2
+```
+
+```shell
+(base) pengzan@YMatrix-2 bin % ./inch --host "http://172.16.100.32:8086" --token u-2Ep9hS-sjaEFxhsdC63hqrz4K8bhlLPpBpkKgYinA6kZ2sLTrydsRSxR9oofNHGk19aMD7C0DcnrfJpfm9WA== -v -c 256 -b 1000 -t 2,500,1 -p 300 --v2
+Host: http://172.16.100.32:8086
+Concurrency: 256
+Virtual Hosts: 0
+Measurements: 1
+Tag cardinalities: [2 500 1]
+Points per series: 300
+Total series: 1000
+Total points: 300000
+Total fields per point: 1
+Randomized field values: false
+Multiple writes per point: false
+Batch Size: 1000
+Database: stress (Shard duration: 7d)
+Write Consistency: any
+Writing into InfluxDB 2.0: true
+InfluxDB 2.0 Authorization Token: u-2Ep9hS-sjaEFxhsdC63hqrz4K8bhlLPpBpkKgYinA6kZ2sLTrydsRSxR9oofNHGk19aMD7C0DcnrfJpfm9WA==
+Content-Type:[application/x-www-form-urlencoded]
+Authorization:[Token u-2Ep9hS-sjaEFxhsdC63hqrz4K8bhlLPpBpkKgYinA6kZ2sLTrydsRSxR9oofNHGk19aMD7C0DcnrfJpfm9WA==]
+Start time: 2023-10-13 17:35:39.907755 +0000 UTC
+Time span: off
+T=00000001 38000 points written (12%). Total throughput: 37940.0 pt/sec | 37940.0 val/sec. Current throughput: 38000 val/sec. Errors: 0
+T=00000002 60000 points written (20%). Total throughput: 29976.8 pt/sec | 29976.8 val/sec. Current throughput: 22000 val/sec. Errors: 0
+T=00000003 125000 points written (41%). Total throughput: 41652.0 pt/sec | 41652.0 val/sec. Current throughput: 65000 val/sec. Errors: 0 | μ: 1.789901s, 90%: 2.914406s, 95%: 2.918859s, 99%: 2.920139s
+T=00000004 277000 points written (92%). Total throughput: 69223.4 pt/sec | 69223.4 val/sec. Current throughput: 152000 val/sec. Errors: 0 | μ: 2.506336592s, 90%: 3.46027s, 95%: 3.49595s, 99%: 3.604662s
+T=00000005 277000 points written (92%). Total throughput: 55342.4 pt/sec | 55342.4 val/sec. Current throughput: 0 val/sec. Errors: 0 | μ: 2.506336592s, 90%: 3.46027s, 95%: 3.49595s, 99%: 3.604662s
+T=00000006 293000 points written (97%). Total throughput: 48820.9 pt/sec | 48820.9 val/sec. Current throughput: 16000 val/sec. Errors: 0 | μ: 2.676528972s, 90%: 3.49595s, 95%: 5.572433s, 99%: 5.641631s
+T=00000007 296000 points written (98%). Total throughput: 42276.6 pt/sec | 42276.6 val/sec. Current throughput: 3000 val/sec. Errors: 0 | μ: 2.713419989s, 90%: 3.502818s, 95%: 5.612333s, 99%: 5.646336s
+T=00000008 297000 points written (99%). Total throughput: 37117.8 pt/sec | 37117.8 val/sec. Current throughput: 1000 val/sec. Errors: 0 | μ: 2.729823175s, 90%: 3.503855s, 95%: 5.616279s, 99%: 6.025215s
+T=00000009 297000 points written (99%). Total throughput: 32994.5 pt/sec | 32994.5 val/sec. Current throughput: 0 val/sec. Errors: 0 | μ: 2.729823175s, 90%: 3.503855s, 95%: 5.616279s, 99%: 6.025215s
+T=00000009 300000 points written (100%). Total throughput: 32497.9 pt/sec | 32497.9 val/sec. Current throughput: 3000 val/sec. Errors: 0 | μ: 2.793683806s, 90%: 3.599518s, 95%: 5.630596s, 99%: 7.585166s
+
+Total time: 9.2 seconds
+
+```

@@ -483,8 +483,8 @@ func (s *Simulator) loadParquet(f string, ch chan []byte) {
 func (s *Simulator) generateBatches() <-chan []byte {
 	ch := make(chan []byte, 10)
 
-	go s.loadParquet(s.ParquetFile, ch)
-	// go s.createBatchInch(ch)
+	//go s.loadParquet(s.ParquetFile, ch)
+	go s.createBatchInch(ch)
 
 	return ch
 }
@@ -794,7 +794,7 @@ var defaultSetupFn = func(s *Simulator) error {
 var defaultWriteBatch = func(s *Simulator, buf []byte) (statusCode int, body io.ReadCloser, err error) {
 	var req *http.Request
 	if s.V2 == true {
-		req, err = http.NewRequest("POST", fmt.Sprintf("%s/api/v2/write?org=aws&bucket=aws&precision=ns", s.Host), bytes.NewReader(buf))
+		req, err = http.NewRequest("POST", fmt.Sprintf("%s/api/v2/write?org=ymatrix&bucket=stress&precision=ns", s.Host), bytes.NewReader(buf))
 	} else {
 		req, err = http.NewRequest("POST", fmt.Sprintf("%s/write?db=%s&precision=ns&consistency=%s", s.Host, s.Database, s.Consistency), bytes.NewReader(buf))
 	}
